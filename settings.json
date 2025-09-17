@@ -1,0 +1,16 @@
+{
+  "check_states": {
+    "Ignore sales": true,
+    "empty box open": false,
+    "target only empty box": false,
+    "open victory box": false,
+    "50 challenge": false,
+    "70 challenge": false,
+    "75 challenge": false,
+    "100 challenge": false,
+    "130 challenge": false
+  },
+  "max_entry_times": "",
+  "challenge_entry_times": "",
+  "altnum": 70
+}
