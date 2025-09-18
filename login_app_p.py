@@ -825,6 +825,10 @@ def tarrun(app, xxx, zzz,yyy,vvv, mtimes , challenge_entry_duration, challenges)
     clicker = ImageClicker(confidence=0.8, max_attempts=5, wait_time=1)
     
     maxcnt = 0
+
+    # app.altnum = 110  # altnumを更新
+    # app.update_color_label()  # 色とテキストを更新
+
     # xxx = 0 #1:ON  0:OFF　空の時のみ　開ける
 
     # zzz = 1 #すべて空あける
@@ -1141,6 +1145,8 @@ def tarrun(app, xxx, zzz,yyy,vvv, mtimes , challenge_entry_duration, challenges)
             # 読み込みたいログファイル名・パス
             rescnt = get_lines_since_yellow(log_file_out)
             app.altnum = rescnt
+            # app.altnum = 110  # altnumを更新
+            app.update_color_label()  # 色とテキストを更新            
 
             maxcnt = maxcnt + 1
             if maxcnt > maxlimit:
