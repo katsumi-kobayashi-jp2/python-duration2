@@ -18,6 +18,7 @@ from tkinter import messagebox
 import random
 import ctypes
 import threading
+import shutil
 
 # DPI 対応
 ctypes.windll.user32.SetProcessDPIAware()
@@ -263,18 +264,20 @@ def get_lines_since_yellow(filename):
     return None
 
 class LoginApp:
-    BASE_WIDTH = 600
-    BASE_HEIGHT = 480
+    BASE_WIDTH = 500
+    BASE_HEIGHT = 550
     SETTINGS_FILE = "settings.json"  # 保存用ファイル名
 
     def __init__(self, root, login_info):
         self.root = root
         self.login_info = login_info
 
-        self.root.title("Custom TK Window")
+        self.root.title("Custom TK ")
         self.root.geometry(f"{self.BASE_WIDTH}x{self.BASE_HEIGHT}")
         self.root.resizable(False, False)
-        self.root.attributes("-topmost", True)
+        # self.root.attributes("-topmost", True)
+       # メインウィンドウを中央に配置
+        self.center_window(self.BASE_WIDTH, self.BASE_HEIGHT)        
 
         # --- 1. 上段ボタン "Go" と "End" ---
         top_button_frame = tk.Frame(self.root)
@@ -304,36 +307,36 @@ class LoginApp:
 
         # --- 2. チェックボタン群(青色)、重複除く ---
         options = [
-            "Ignore sales", "empty box open", "target only empty box",
+            "Ignore the invitation", "open box", "target only empty box",
             "open victory box",
             "50 challenge", "70 challenge", "75 challenge",
             "100 challenge", "130 challenge"
         ]
 
+        # チェックボックスを格納するフレームを作成
         option_frame = tk.Frame(self.root)
-        option_frame.pack(pady=10, fill='x')
+        option_frame.pack(pady=20, fill="x")  # マージンと配置方法を設定
 
+        # オプションの変数を保持するリスト
         self.option_vars = []
-        # for i, opt in enumerate(options):
-        #     var = tk.BooleanVar(value=False)
-        #     cb = tk.Checkbutton(
-        #         option_frame, text=opt, variable=var,
-        #         fg="blue", font=("Arial", 11)
-        #     )
-        #     cb.grid(row=i // 2, column=i % 2, sticky='w', padx=10, pady=2)
-        #     self.option_vars.append((opt, var))
 
-        for i, opt in enumerate(options):
-            # "Ignore sales" はデフォルト True、それ以外は False
-            initial_value = True if opt == "Ignore sales" else False
-            var = tk.BooleanVar(value=initial_value)
+        # チェックボックスを動的に作成
+        for i, option in enumerate(options):
+            # "Ignore the invitation"だけデフォルトでチェックを入れる
+            var = tk.BooleanVar(value=(option == "Ignore the invitation"))
+
+            # チェックボックスを作成
             cb = tk.Checkbutton(
-                option_frame, text=opt, variable=var,
-                fg="blue", font=("Arial", 11)
+                option_frame,
+                text=option,
+                variable=var,  # BooleanVarを関連付け
+                fg="blue",
+                font=("Arial", 11)
             )
-            cb.grid(row=i // 2, column=i % 2, sticky='w', padx=10, pady=2)
-            self.option_vars.append((opt, var))
+            cb.grid(row=i // 2, column=i % 2, sticky="w", padx=10, pady=5)  # 格子状に配置
 
+            # ラベル名と状態変数をリストに保存
+            self.option_vars.append((option, var))
 
         # --- 3. 色付きラベル ---
         self.altnum = 45  # 初期値。後で main から変更可能。
@@ -398,19 +401,208 @@ class LoginApp:
         self.challenge_entry.grid(row=1, column=1, padx=5)
 
         # Saveボタン（橙色背景）
+        # save_button = tk.Button(
+        #     self.root,
+        #     text="Save",
+        #     font=("Arial", 11),
+        #     bg="#FFA500",       # オレンジ色
+        #     fg="black",
+        #     command=self.save_settings
+        # )
+        # save_button.pack(side=tk.BOTTOM, pady=10)
+
+        # 現在のパスワード（初期は空）
+        self.password = None
+        self.load_settings()  # 起動時に設定をロードしパスワードも読み込む
+
+       # SaveボタンとUninstallボタンのフレーム
+        button_frame = tk.Frame(self.root)
+        button_frame.pack(side=tk.BOTTOM, pady=10)
+
+        # Saveボタン
         save_button = tk.Button(
-            self.root,
+            button_frame,
             text="Save",
             font=("Arial", 11),
-            bg="#FFA500",       # オレンジ色
+            bg="#FFA500",  # オレンジ色
             fg="black",
             command=self.save_settings
         )
-        save_button.pack(side=tk.BOTTOM, pady=10)
+        save_button.pack(side=tk.LEFT, padx=5)
+
+     # Enter Passwordボタン (Saveボタンの右隣に追加)
+        password_button = tk.Button(
+            button_frame,
+            text="Enter Password",
+            font=("Arial", 11),
+            bg="#4682B4",  # 青色
+            fg="white",
+            command=self.enter_password  # パスワード入力ダイアログを呼び出す
+        )
+        password_button.pack(side=tk.LEFT, padx=5)
+
+      # テキストボックス制御のためのイベント
+        self.max_active_entry.bind("<FocusOut>", self.validate_max_entry)  # フォーカスが外れた時にチェック
+        self.max_active_entry.bind("<Return>", self.validate_max_entry)  # Enterキー押下時にチェック
+
+        # Uninstallボタン
+        uninstall_button = tk.Button(
+            button_frame,
+            text="Uninstall",
+            font=("Arial", 11),
+            bg="#FF4500",  # 赤橙色
+            fg="white",
+            command=self.uninstall_app
+        )
+        uninstall_button.pack(side=tk.LEFT, padx=5)        
 
 
         # 起動時に設定を読み込む
         self.load_settings()
+
+    def center_window(self, width, height):
+        """
+        ウィンドウを画面中央に配置する関数
+        """
+        screen_width = self.root.winfo_screenwidth()
+        screen_height = self.root.winfo_screenheight()
+
+        x = (screen_width - width) // 2
+        y = (screen_height - height) // 2
+
+        self.root.geometry(f"{width}x{height}+{x}+{y}")
+
+    def uninstall_app(self):
+        """
+        保存データとimageフォルダを削除する機能
+        2回確認するダイアログ付き。
+        """
+        # 最初の確認ダイアログ
+        response1 = messagebox.askyesno(
+            "Confirm Uninstallation",
+            "All saved data and image files will be deleted.\nAre you sure?"
+        )
+        if not response1:
+            return
+        
+        # 再度の確認ダイアログ
+        response2 = messagebox.askyesno(
+            "Final Confirmation",
+            "This will permanently delete all saved data and the image folder.\n\nContinue?"
+        )
+        if not response2:
+            return
+
+        # 保存データの削除
+        try:
+            if os.path.exists(self.SETTINGS_FILE):
+                os.remove(self.SETTINGS_FILE)
+                messagebox.showinfo("Success", f"Deleted: {self.SETTINGS_FILE}")
+            else:
+                messagebox.showinfo("Info", f"File not found: {self.SETTINGS_FILE}")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to delete {self.SETTINGS_FILE}: {e}")
+
+        # imageフォルダの削除
+        try:
+            if os.path.exists("image"):
+                shutil.rmtree("image")
+                messagebox.showinfo("Success", "Deleted folder: image")
+            else:
+                messagebox.showinfo("Info", "Folder not found: image")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to delete folder 'image': {e}")
+
+    def validate_max_entry(self, event=None):
+            """
+            max entry timesに対する入力値のバリデーション。
+            パスワードなしの場合は10以上入力不可。
+            """
+            try:
+                value = int(self.max_active_entry.get())
+                if value > 10 and self.password is None:
+                    # パスワード入力していない場合、メッセージを表示し制限
+                    messagebox.showwarning("Warning", "To input more than 10, please enter the password.")
+                    self.max_active_entry.delete(0, tk.END)
+                    self.max_active_entry.insert(0, "10")  # 最大値を10に制限
+            except ValueError:
+                pass  # 非数値の入力は無視します
+
+    def enter_password(self):
+        """
+        パスワード入力ダイアログを表示し、中央に表示する。
+        """
+        # 入力ウィンドウが既に開いている場合は、何もしない
+        if hasattr(self, "password_window") and self.password_window.winfo_exists():
+            self.password_window.focus_set()
+            return
+
+        # パスワード入力用ウィンドウ
+        self.password_window = tk.Toplevel(self.root)
+        self.password_window.title("Enter Password")
+        self.password_window.resizable(False, False)
+
+        # ウィンドウサイズ
+        window_width = 300
+        window_height = 150
+
+        # 中央に配置
+        screen_width = self.root.winfo_screenwidth()
+        screen_height = self.root.winfo_screenheight()
+        position_x = (screen_width // 2) - (window_width // 2)
+        position_y = (screen_height // 2) - (window_height // 2)
+        self.password_window.geometry(f"{window_width}x{window_height}+{position_x}+{position_y}")
+
+        # ウィンドウのフォーカスを必ずキャッチ
+        self.password_window.transient(self.root)  # メインウィンドウの手前に表示
+        self.password_window.grab_set()  # フォーカスを固定
+        self.password_window.focus_set()
+
+        # パスワード入力UI構築
+        tk.Label(self.password_window, text="Enter Password:", font=("Arial", 12)).pack(pady=10)
+        password_entry = tk.Entry(self.password_window, show="*", font=("Arial", 12))
+        password_entry.pack(pady=5)
+
+        def check_password():
+            input_password = password_entry.get()
+            if input_password.strip() == "Fdsa4321":
+                self.password = input_password
+                self.save_password()  # パスワードを保存
+                messagebox.showinfo("Success", "Password accepted. You can now input more than 10.")
+                self.password_window.destroy()
+            else:
+                messagebox.showerror("Error", "Incorrect password. Please try again.")
+
+        submit_button = tk.Button(
+            self.password_window, text="Submit", font=("Arial", 11), command=check_password
+        )
+        submit_button.pack(pady=10)
+
+        # 閉じる動作の制御
+        self.password_window.protocol("WM_DELETE_WINDOW", lambda: self.password_window.destroy())
+
+    def save_password(self):
+        """
+        パスワードを設定ファイルに保存する。
+        """
+        try:
+            # 現在の設定データの読み込み
+            if os.path.exists(self.SETTINGS_FILE):
+                with open(self.SETTINGS_FILE, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+            else:
+                data = {}
+
+            # パスワードを設定データに追加
+            data['password'] = self.password
+
+            # 保存
+            with open(self.SETTINGS_FILE, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to save password: {e}")
+
 
     def update_color_label(self):
         num = self.altnum
@@ -484,44 +676,139 @@ class LoginApp:
         self.open_today_filtered_file("log_buffer2.txt")
 
     def save_settings(self):
+        """
+        設定を保存するが、max entry times が制限値を超えた場合は許可しない。
+        """
+        # max_entry_times の値を取得
+        try:
+            max_entry = int(self.max_active_entry.get())
+        except ValueError:
+            messagebox.showerror("Error", "Max entry times must be a valid number.")
+            return
+
+        # 制限を確認：パスワード未設定の場合は 10 を超える値を保存しない
+        if max_entry > 10 and self.password is None:
+            messagebox.showerror(
+                "Error",
+                "You cannot set 'Max entry times' to a value greater than 10 without entering the password."
+            )
+            # 値をリセットする
+            self.max_active_entry.delete(0, tk.END)
+            self.max_active_entry.insert(0, "10")
+            return
+
+        # 設定を保存する準備
         data = {
             "check_states": {opt: var.get() for opt, var in self.option_vars},
-            "max_entry_times": self.max_active_entry.get(),
+            "max_entry_times": max_entry,  # 修正後の max_entry_times を保存
             "challenge_entry_times": self.challenge_entry.get(),
             "altnum": self.altnum,
+            "password": self.password  # 現在のパスワードも保存
         }
+
         try:
             with open(self.SETTINGS_FILE, "w", encoding="utf-8") as f:
-                import json
                 json.dump(data, f, ensure_ascii=False, indent=2)
             messagebox.showinfo("Info", "Settings saved.")
         except Exception as e:
             messagebox.showerror("Error", f"Failed to save settings: {e}")
 
+    # def load_settings(self):
+    #     """
+    #     保存された設定をロードし、GUI要素に反映する。
+    #     """
+    #     if os.path.exists(self.SETTINGS_FILE):
+    #         try:
+    #             with open(self.SETTINGS_FILE, "r", encoding="utf-8") as f:
+    #                 data = json.load(f)
+
+    #             # チェックボックスの状態復元
+    #             check_states = data.get("check_states", {})
+    #             for opt, var in self.option_vars:
+    #                 var.set(check_states.get(opt, False))
+
+    #             # max_entry_times の復元（制限を適用）
+    #             max_entry = int(data.get("max_entry_times", 10))
+    #             if max_entry > 10 and self.password is None:
+    #                 max_entry = 10  # 制限を超える場合はデフォルト値に戻す
+    #             self.max_active_entry.delete(0, tk.END)
+    #             self.max_active_entry.insert(0, str(max_entry))
+
+    #             # 他の項目の復元
+    #             self.challenge_entry.delete(0, tk.END)
+    #             self.challenge_entry.insert(0, data.get("challenge_entry_times", ""))
+    #             self.altnum = data.get("altnum", 45)
+    #             self.update_color_label()
+
+    #             # パスワードの復元
+    #             self.password = data.get("password", None)
+
+    #         except Exception as e:
+    #             messagebox.showerror("Error", f"Failed to load settings: {e}")
+
     def load_settings(self):
-        import json
+        """
+        保存された設定をロードし、GUI要素に反映する。
+        """
+        # デフォルト値の定義
+        defaults = {
+            "Ignore the invitation": True,  # デフォルトでチェック
+            "empty box open": False,
+            "target only empty box": False,
+            "open victory box": False
+        }
+
         if os.path.exists(self.SETTINGS_FILE):
             try:
                 with open(self.SETTINGS_FILE, "r", encoding="utf-8") as f:
                     data = json.load(f)
-                # チェックボックスの状態復元
+
+                # チェックボックスの状態復元（デフォルトを適用しつつ）
                 check_states = data.get("check_states", {})
                 for opt, var in self.option_vars:
-                    var.set(check_states.get(opt, False))
-                # テキストボックスの値復元
+                    var.set(check_states.get(opt, defaults.get(opt, False)))
+
+                # max_entry_times の復元（制限を適用）
+                max_entry = int(data.get("max_entry_times", 10))
+                if max_entry > 10 and self.password is None:
+                    max_entry = 10  # 制限を超える場合はデフォルト値に戻す
                 self.max_active_entry.delete(0, tk.END)
-                self.max_active_entry.insert(0, data.get("max_entry_times", ""))
+                self.max_active_entry.insert(0, str(max_entry))
+
+                # 他の項目の復元
                 self.challenge_entry.delete(0, tk.END)
                 self.challenge_entry.insert(0, data.get("challenge_entry_times", ""))
-                # altnum値復元し色更新
                 self.altnum = data.get("altnum", 45)
                 self.update_color_label()
 
+                # パスワードの復元
+                self.password = data.get("password", None)
+
             except Exception as e:
                 messagebox.showerror("Error", f"Failed to load settings: {e}")
+        else:
+            # チェックボックスのデフォルト値を適用
+            for opt, var in self.option_vars:
+                var.set(defaults.get(opt, False))
+
+            # max_entry_times と challenge_entry_times のデフォルト値を適用
+            self.max_active_entry.delete(0, tk.END)
+            self.max_active_entry.insert(0, "10")
+            self.challenge_entry.delete(0, tk.END)
+            self.challenge_entry.insert(0, "5")
+
+    def get_option_value(self, option_name):
+        """
+        チェックボックスのラベル名を指定して、その状態（True/False）を返す。
+        """
+        for opt, var in self.option_vars:
+            if opt == option_name:
+                return var.get()
+        return False  # 見つからない場合はデフォルトでFalseを返す                
+
 rescnt = 0
 
-def tarrun(app, xxx=0, zzz=0,yyy=0,vvv=0,maxlimit=10):
+def tarrun(app, xxx, zzz,yyy,vvv, mtimes , challenge_entry_duration, challenges):
     # 左モニタ取得
     with mss.mss() as sct:
         left_monitor = None
@@ -548,7 +835,7 @@ def tarrun(app, xxx=0, zzz=0,yyy=0,vvv=0,maxlimit=10):
 
     wait_for_idle_flag = 1 #wait 0:off
 
-    # maxlimit = 44
+    maxlimit = mtimes
     timespan = random.uniform(1.1, 2.2) 
     timespan_10 = random.uniform(1.5, 5.5) 
     timespan_20 = random.uniform(5.2, 30.5) 
@@ -881,8 +1168,49 @@ if __name__ == "__main__":
 
     root.after(1000, check_login_info)
 
+    challenge_options = [
+        "50 challenge",
+        "70 challenge",
+        "75 challenge",
+        "100 challenge",
+        "130 challenge"
+    ]
+
+    xxx = 1 if app.get_option_value("open box") else 0
+    vvv = 1 if app.get_option_value("open victory box") else 0
+    yyy = 1 if app.get_option_value("Ignore the invitation") else 0
+    zzz = 1 if app.get_option_value("target only empty box") else 0
+
+    # max_entry_times と challenge_entry_duration_times を取得
+    try:
+        mtimes = int(app.max_active_entry.get())  # Max entry times
+    except ValueError:
+        mtimes = 10  # デフォルト値
+
+    try:
+        challenge_entry_duration = int(app.challenge_entry.get())  # Challenge entry times
+    except ValueError:
+        challenge_entry_duration = 5  # デフォルト値
+
+   # challenge関連の状態をリストとしてまとめる
+    challenges = [1 if app.get_option_value(option) else 2 for option in challenge_options]
+
     # tarrun を新スレッドで開始
-    thread = threading.Thread(target=tarrun, args=(app,), kwargs=dict(xxx=0, zzz=0, yyy=0, vvv=0, maxlimit=10))
+    # thread = threading.Thread(target=tarrun, args=(app,), kwargs=dict(xxx, zzz, yyy, vvv, mtimes, challenge_entry_duration, challenges))
+    thread = threading.Thread(
+    target=tarrun,
+    args=(app,),  # 必要に応じて、selfを渡す
+    kwargs=dict(
+        xxx=xxx,
+        zzz=zzz,
+        yyy=yyy,
+        vvv=vvv,
+        mtimes=mtimes,
+        challenge_entry_duration=challenge_entry_duration,  # "ces"が渡される
+        challenges=challenges  # "cha"が渡される
+    )
+)
+    
     thread.start()
 
     def on_closing():
