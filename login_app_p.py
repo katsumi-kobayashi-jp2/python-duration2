@@ -315,7 +315,7 @@ class LoginApp:
         options = [
             "Ignore the invitation", "open box", "target only empty box",
             "open victory box",
-            "50 challenge", "70 challenge", "85 challenge",
+            "55 challenge", "70 challenge", "85 challenge",
             "100 challenge", "130 challenge"
         ]
 
@@ -641,7 +641,7 @@ class LoginApp:
 
         current_path = os.getcwd()
         challenge_options = [
-            (current_path + r'\image\50.png',"50 challenge", False),
+            (current_path + r'\image\55.png',"55 challenge", False),
             (current_path + r'\image\70.png',"70 challenge", False),
             (current_path + r'\image\85.png',"85 challenge", False),
             (current_path + r'\image\100.png',"100 challenge", False),
@@ -1083,7 +1083,6 @@ def tarrun(app, xxx, zzz,yyy,vvv, mtimes , challenge_entry_duration, challenges,
                         messagebox.showinfo("終了", "エラー終了しました")
                         exit()
 
-
             while True:
                 time.sleep(timespan)
                 image_path = current_path + r'\image\tajayu.PNG'
@@ -1092,6 +1091,10 @@ def tarrun(app, xxx, zzz,yyy,vvv, mtimes , challenge_entry_duration, challenges,
                 if res == False:
                     time.sleep(timespan)
                     break
+                time.sleep(timespan)
+                image_path = r'D:\RustGodess\image\auto.PNG'
+                # res = clicker.attempt_click_on_monitor(left_monitor, image_path)
+                res = clicker.attempt_click_on_monitor(left_monitor, image_path,offset=(5, 0), retry=1)
             time.sleep(timespan*3)
             offx = random.uniform(0.5, 7.3)
             offy = random.uniform(0.2, 5.5)            
@@ -1104,6 +1107,8 @@ def tarrun(app, xxx, zzz,yyy,vvv, mtimes , challenge_entry_duration, challenges,
                     time.sleep(timespan)  # 次のチェックまで待機
                     if res==True:
                         break
+                    if label=="赤":
+                        label=label
                 if res == False:
                     messagebox.showinfo("終了", "エラー 終了しました:" + str(images))
                     exit()
@@ -1188,7 +1193,7 @@ if __name__ == "__main__":
 
     current_path = os.getcwd()
     challenge_options = [
-        (current_path + r'\image\50.png',"50 challenge", False),
+        (current_path + r'\image\55.png',"55 challenge", False),
         (current_path + r'\image\70.png',"70 challenge", False),
         (current_path + r'\image\85.png',"85 challenge", False),
         (current_path + r'\image\100.png',"100 challenge", False),
