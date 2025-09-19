@@ -26,6 +26,26 @@ log_file_in = "log_buffer.txt"
 log_file_out = "log_buffer2.txt"
 log_file_box = "log_buffer_box.txt"
 
+# app.altnum = 110  # altnumを更新
+# app.update_color_label()  # 色とテキストを更新
+
+# xxx = 0 #1:ON  0:OFF　空の時のみ　開ける
+
+# zzz = 1 #すべて空あける
+
+# yyy = 1 #buyキャンセル
+
+# vvv = 1 #Victory
+
+wait_for_idle_flag = 1 #wait 0:off
+
+timespan = random.uniform(1.1, 1.7) 
+timespan_10 = random.uniform(1.5, 4.5) 
+timespan_20 = random.uniform(5.2, 20.5) 
+time.sleep(timespan-1)
+offx = random.uniform(0.5, 7.3)
+offy = random.uniform(0.2, 5.5)
+
 class LASTINPUTINFO(ctypes.Structure):
     """
     Windows APIのLASTINPUTINFO構造体を表すクラス。
@@ -62,37 +82,34 @@ def wait_for_idle(threshold_sec=5, check_interval=0.5):
             break
         time.sleep(check_interval)
 
+
+def move_with_retry(x, y, retries=3, delay=0.2):
+    for attempt in range(1, retries + 1):
+        try:
+            pg.moveTo(x, y, duration=0)
+            return True  # 成功
+        except Exception as e:
+            print(f"Attempt {attempt} failed: {e}")
+            time.sleep(delay)  # 少し待ってから再試行
+    return False  # 全て失敗
+
+def doubleClick_with_retry(x, y, retries=3, delay=0.2):
+    for attempt in range(1, retries + 1):
+        try:
+            pg.doubleClick(x, y)
+            return True
+        except Exception as e:
+            print(f"Attempt {attempt} failed: {e}")
+            time.sleep(delay)
+    return False
+
 class ImageClicker:
-    def __init__(self, confidence=0.8, max_attempts=5, wait_time=2, log_file="log_buffer.txt"):
+    def __init__(self, confidence=0.8, max_attempts=5, wait_time=2, log_file="log_buffer.txt",wait_for_idle_flag = 1):
         self.confidence = confidence
         self.max_attempts = max_attempts
         self.wait_time = wait_time
         self.log_file = log_file
-
-    # def log_match(self, label):
-    #     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    #     with open(self.log_file, "a", encoding="utf-8") as f:
-    #         f.write(f"{now}, 記録 {label}\n")
-    #     print(f"ログ記録: {now}, 記録 {label}")
-
-    # def log_match(self, label):
-    #     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    #     log_file_in = "log_buffer.txt"
-    #     log_file_out = "log_buffer2.txt"
-    #     if label != '' and label != None:
-    #         # 末尾に新しい記録を追加
-    #         data = f"{now}, 記録 {label}\n"
-    #         # log_buffer2.txt に書き込み
-    #         with open(log_file_in, "a", encoding="utf-8") as f:
-    #                 f.write(data)
-    #         print(f"ログ記録(X): {now}, 記録 {label} + 黒・黄・赤 → {log_file_in}")        
-    #         if label == "ｘ":
-    #             # 元ファイルを読み込む（存在しない場合は空にする）
-    #             try:
-    #                 with open(log_file_in, "r", encoding="utf-8") as f:
-    #                     data = f.read()
-    #             except FileNotFoundError:
-    #                 data = ""
+        self.wait_for_idle_flag = wait_for_idle_flag
 
     def log_match(self, label):
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -156,15 +173,15 @@ class ImageClicker:
             click_y = monitor['top'] + option[1] + offset_y
 
             time.sleep(0.2)
-            if wait_for_idle_flag==1:
+            if self.wait_for_idle_flag==1:
                 wait_for_idle(threshold_sec=2, check_interval=0.5)    
                 current_pos = pg.position()
-                pg.moveTo(click_x, click_y, duration=0)
-                pg.doubleClick()
-                pg.moveTo(current_pos, duration=0)
+                move_with_retry(click_x, click_y)
+                doubleClick_with_retry(click_x, click_y)
+                move_with_retry(current_pos.x,current_pos.y)
             else:
-                pg.moveTo(click_x, click_y, duration=0)
-                pg.doubleClick()
+                move_with_retry(click_x, click_y)
+                doubleClick_with_retry(click_x, click_y)
 
             print(f"オプション座標をクリックしました: ({click_x}, {click_y}) [補正 {offset}]")
             if label:
@@ -196,16 +213,16 @@ class ImageClicker:
             click_y = monitor['top'] + max_loc[1] + template_h // 2 + offset_y
 
             time.sleep(0.2)
-            if wait_for_idle_flag==1:
+            if self.wait_for_idle_flag==1:
                 wait_for_idle(threshold_sec=3, check_interval=0.5)    
                 time.sleep(0.2)
                 current_pos = pg.position()
-                pg.moveTo(click_x, click_y, duration=0)
-                pg.doubleClick()
-                pg.moveTo(current_pos, duration=0)
+                move_with_retry(click_x, click_y)
+                doubleClick_with_retry(click_x, click_y)
+                move_with_retry(current_pos.x,current_pos.y)
             else:
-                pg.moveTo(click_x, click_y, duration=0)
-                pg.doubleClick()                
+                move_with_retry(click_x, click_y)
+                doubleClick_with_retry(click_x, click_y)             
 
             print(f"画像 {image_path} をクリックしました: ({click_x}, {click_y}) [補正 {offset}]")
 
@@ -213,17 +230,6 @@ class ImageClicker:
                 self.log_match(label)
             return True
         return False
-
-    # def attempt_click_on_monitor(self, monitor, image_path, label="", option=None, offset=(0,0)):
-    #     """リトライ付きクリック処理。optionがあれば座標優先。offsetで補正可能"""
-    #     for attempt in range(self.max_attempts):
-    #         if self.click_image_on_monitor(monitor, image_path, label, option, offset):
-    #             return True
-    #         else:
-    #             print(f"リトライ {attempt + 1}/{self.max_attempts}")
-    #             time.sleep(self.wait_time)
-    #     print("最大試行回数に達しました。")
-    #     return False
 
     def attempt_click_on_monitor(self, monitor, image_path, label="", option=None, offset=(0,0), retry=3):
         """リトライ付きクリック処理。optionがあれば座標優先。offsetで補正可能
@@ -309,7 +315,7 @@ class LoginApp:
         options = [
             "Ignore the invitation", "open box", "target only empty box",
             "open victory box",
-            "50 challenge", "70 challenge", "75 challenge",
+            "50 challenge", "70 challenge", "85 challenge",
             "100 challenge", "130 challenge"
         ]
 
@@ -615,10 +621,46 @@ class LoginApp:
         self.color_label.config(fg=color, text=f"Value: {num}")
 
     def on_go_clicked(self):
+        # ボタン無効化（重複起動防止）
+
+        xxx = 1 if self.get_option_value("open box") else 0
+        vvv = 1 if self.get_option_value("open victory box") else 0
+        yyy = 1 if self.get_option_value("Ignore the invitation") else 0
+        zzz = 1 if self.get_option_value("target only empty box") else 0
+        
+        # max_entry_times と challenge_entry_duration_times を取得
+        try:
+            mtimes = int(self.max_active_entry.get())  # Max entry times
+        except ValueError:
+            mtimes = 10  # デフォルト値
+
+        try:
+            challenge_entry_duration = int(self.challenge_entry.get())  # Challenge entry times
+        except ValueError:
+            challenge_entry_duration = 5  # デフォルト値
+
+        current_path = os.getcwd()
+        challenge_options = [
+            (current_path + r'\image\50.png',"50 challenge", False),
+            (current_path + r'\image\70.png',"70 challenge", False),
+            (current_path + r'\image\85.png',"85 challenge", False),
+            (current_path + r'\image\100.png',"100 challenge", False),
+            (current_path + r'\image\130.png',"130 challenge", False)
+        ]
+    # challenge関連の状態をリストとしてまとめる
+        # challenges = [1 if app.get_option_value(option) else 2 for option in challenge_options]
+        challenges = [(image,1) if self.get_option_value(option_name) else (image,0) for (image, option_name, state)in challenge_options]
+    
         self.go_button.config(state=tk.DISABLED)
-        self.login_info.append("hello")
-        self.login_info.append("message")
-        print("Go clicked: 'hello' and 'message' added to login_info")
+
+        # スレッド起動
+        self.thread = threading.Thread(
+            target=tarrun,
+            args=(self,  # selfや必要な引数を渡す
+                  xxx, zzz, yyy, vvv, mtimes, challenge_entry_duration, challenges, wait_for_idle_flag)
+        )
+        self.thread.daemon = True  # メイン終了時に強制終了させる場合
+        self.thread.start()
 
     def open_file_with_notepad(self, filename):
         if not os.path.exists(filename):
@@ -713,39 +755,6 @@ class LoginApp:
         except Exception as e:
             messagebox.showerror("Error", f"Failed to save settings: {e}")
 
-    # def load_settings(self):
-    #     """
-    #     保存された設定をロードし、GUI要素に反映する。
-    #     """
-    #     if os.path.exists(self.SETTINGS_FILE):
-    #         try:
-    #             with open(self.SETTINGS_FILE, "r", encoding="utf-8") as f:
-    #                 data = json.load(f)
-
-    #             # チェックボックスの状態復元
-    #             check_states = data.get("check_states", {})
-    #             for opt, var in self.option_vars:
-    #                 var.set(check_states.get(opt, False))
-
-    #             # max_entry_times の復元（制限を適用）
-    #             max_entry = int(data.get("max_entry_times", 10))
-    #             if max_entry > 10 and self.password is None:
-    #                 max_entry = 10  # 制限を超える場合はデフォルト値に戻す
-    #             self.max_active_entry.delete(0, tk.END)
-    #             self.max_active_entry.insert(0, str(max_entry))
-
-    #             # 他の項目の復元
-    #             self.challenge_entry.delete(0, tk.END)
-    #             self.challenge_entry.insert(0, data.get("challenge_entry_times", ""))
-    #             self.altnum = data.get("altnum", 45)
-    #             self.update_color_label()
-
-    #             # パスワードの復元
-    #             self.password = data.get("password", None)
-
-    #         except Exception as e:
-    #             messagebox.showerror("Error", f"Failed to load settings: {e}")
-
     def load_settings(self):
         """
         保存された設定をロードし、GUI要素に反映する。
@@ -808,7 +817,10 @@ class LoginApp:
 
 rescnt = 0
 
-def tarrun(app, xxx, zzz,yyy,vvv, mtimes , challenge_entry_duration, challenges):
+def tarrun(app, xxx, zzz,yyy,vvv, mtimes , challenge_entry_duration, challenges, wait_for_idle_flag):
+    global offx, offy  # グローバル宣言（代入もする場合は必須）
+    global timespan, timespan_10 , timespan_20
+
     # 左モニタ取得
     with mss.mss() as sct:
         left_monitor = None
@@ -819,249 +831,208 @@ def tarrun(app, xxx, zzz,yyy,vvv, mtimes , challenge_entry_duration, challenges)
         if left_monitor is None:
             left_monitor = sct.monitors[1]
 
+    maxcnt = 0
+    maxlimit = mtimes
+    current_path = os.getcwd()
     root = tk.Tk()
     root.withdraw()  # メインウィンドウを非表示
 
-    clicker = ImageClicker(confidence=0.8, max_attempts=5, wait_time=1)
+    clicker = ImageClicker(confidence=0.8, max_attempts=5, wait_time=1, wait_for_idle_flag=wait_for_idle_flag)
     
-    maxcnt = 0
-
-    # app.altnum = 110  # altnumを更新
-    # app.update_color_label()  # 色とテキストを更新
-
-    # xxx = 0 #1:ON  0:OFF　空の時のみ　開ける
-
-    # zzz = 1 #すべて空あける
-
-    # yyy = 1 #buyキャンセル
-
-    # vvv = 1 #Victory
-
-    wait_for_idle_flag = 1 #wait 0:off
-
-    maxlimit = mtimes
-    timespan = random.uniform(1.1, 2.2) 
-    timespan_10 = random.uniform(1.5, 5.5) 
-    timespan_20 = random.uniform(5.2, 30.5) 
-    time.sleep(timespan-1)
-    offx = random.uniform(0.5, 7.3)
-    offy = random.uniform(0.2, 5.5)
-
-
-    # if 1==zzz:
-    #         image_path = r'D:\RustGo\image\open_box_black.PNG'
-    #         # res = clicker.attempt_click_on_monitor(left_monitor, image_path)
-    #         res = clicker.find_image_on_monitor(left_monitor, image_path)
-    #         if res == True:
-    #             time.sleep(timespan_20)
-    #             image_path = r'D:\RustGo\image\open_box_black.PNG'
-    #             res = clicker.attempt_click_on_monitor(left_monitor, image_path, label = "40" ,retry=2)
-    #             time.sleep(timespan)  # 次のチェックまで1秒待機            
-    #             if res== False:                
-    #                 messagebox.showinfo("終了", "エラー終了しました")
-    #                 exit()
-    #             time.sleep(timespan)
-    #             image_path = r'D:\RustGo\image\box_move.PNG'
-    #             res = clicker.attempt_click_on_monitor(left_monitor, image_path, label = "40",option =(500,600) ,retry=2)
-    #             time.sleep(timespan)  # 次のチェックまで1秒待機            
-    #             if res== False:                
-    #                 messagebox.showinfo("終了", "エラー終了しました")
-    #                 exit()                    
-
-
-
-
     images = [
-        (r'D:\RustGo\image\black.png', "."),
-        (r'D:\RustGo\image\yellow.png', "黄"),
-        (r'D:\RustGo\image\red.png', "赤")
+        (current_path + r'\image\black.png', "."),
+        (current_path + r'\image\yellow.png', "黄"),
+        (current_path + r'\image\red.png', "赤")
     ]
+    # time.sleep(timespan)
+    # #結果後、出てくる状態でLOSE
+    # image_path = current_path + r'\image\meisei_down.PNG'
+    # label = 'ｘ'
+    # res = clicker.attempt_click_on_monitor(left_monitor, image_path, label, offset=(offx, offy), retry=2)
+    # if res== False: #
+    #     #結果後、出てくる状態でBOX
+    #     for img_path, label in images:
+    #         time.sleep(timespan)  # 次のチェックまで待機
+    #         res = clicker.attempt_click_on_monitor(left_monitor, img_path, label,option =(500,600), offset=(offx, offy), retry=2)
+    #         if res==True:
+    #             break
+    #     if res == False:
+    #         messagebox.showinfo("終了", "エラー 終了しました:" + str(images))
+    #         exit()
+
+#   # if maxcnt % challenge_entry_duration == 0:
+#     time.sleep(timespan) 
+#     #移動させる
+#     image_path = current_path + r'\image\4499.PNG'
+#     # res = clicker.attempt_click_on_monitor(left_monitor, image_path)
+#     res = clicker.attempt_click_on_monitor(left_monitor, image_path)
+#     if res == False:
+#         #先にGET分を処理する必要あり
+#         for img_path, val in challenges:
+#             if val == 1: # challenges選択
+#                 time.sleep(timespan)  
+#                 res = clicker.attempt_click_on_monitor(left_monitor, img_path,  retry=2)
+#                 if res==True:
+#                     #開始させる処理
+#                     break
+#         if res == False:
+#             messagebox.showinfo("終了", "エラー 終了しました:" + str(images))
+#             exit()
+
+#         #遷移する処理    
+#         time.sleep(timespan)
+#         image_path = current_path + r'\image\buy_ok_X.PNG'
+#         res = clicker.attempt_click_on_monitor(left_monitor, image_path, retry=1)
+#         if res== False:                
+#             messagebox.showinfo("終了", "エラー終了しました")
+#             exit()
+
     if 1==1:
-        image_path = r'D:\RustGo\image\buy_ok.PNG'
+        time.sleep(timespan)
+        image_path = current_path + r'\image\buy_ok.PNG'
         # res = clicker.attempt_click_on_monitor(left_monitor, image_path)
         res = clicker.find_image_on_monitor(left_monitor, image_path)
         if res == True:
             time.sleep(timespan)
 
-            image_path = r'D:\RustGo\image\buy_ok_X.PNG'
+            image_path = current_path + r'\image\buy_ok_X.PNG'
             res = clicker.attempt_click_on_monitor(left_monitor, image_path, retry=1)
-            time.sleep(timespan)  # 次のチェックまで1秒待機            
             if res== False:                
                 messagebox.showinfo("終了", "エラー終了しました")
                 exit()
-    image_path = r'D:\RustGo\image\buttle5.PNG'
-    # image_path = r'D:\RustGo\image\black.PNG'
-    # image_path = r'D:\RustGo\image\red.PNG'
+
+    image_path = current_path + r'\image\buttle5.PNG'
+    # image_path = current_path + r'\image\black.PNG'
+    # image_path = current_path + r'\image\red.PNG'
     # 左モニタで画像をクリック    
     res = clicker.attempt_click_on_monitor(left_monitor, image_path, offset=(offx, offy), retry=2)
     # res = clicker.attempt_click_on_monitor(left_monitor, image_path,option =(500,600))
     if res == True:
         while True:
 
+            timespan = random.uniform(1.1, 1.7) 
+            timespan_10 = random.uniform(1.5, 4.5) 
+            timespan_20 = random.uniform(5.2, 20.5) 
             if 1==yyy: #買い
                 time.sleep(timespan) 
-                image_path = r'D:\RustGo\image\buy_ok.PNG'
+                image_path = current_path + r'\image\buy_ok.PNG'
                 # res = clicker.attempt_click_on_monitor(left_monitor, image_path)
                 res = clicker.find_image_on_monitor(left_monitor, image_path)
                 if res == True:
                     time.sleep(timespan)
-
-                    image_path = r'D:\RustGo\image\buy_ok_X.PNG'
+                    image_path = current_path + r'\image\buy_ok_X.PNG'
                     res = clicker.attempt_click_on_monitor(left_monitor, image_path, retry=2)
-                    time.sleep(timespan)  # 次のチェックまで1秒待機            
                     if res== False:                
                         messagebox.showinfo("終了", "エラー終了しました")
                         exit()  
+            else:
+                if 1==1:
+                    time.sleep(timespan) 
+                    image_path = current_path + r'\image\4499.PNG'
+                    # res = clicker.attempt_click_on_monitor(left_monitor, image_path)
+                    res = clicker.find_image_on_monitor(left_monitor, image_path)
+                    if res == True:
+                        time.sleep(timespan)
 
-            if 1==1:
-                time.sleep(timespan) 
-                image_path = r'D:\RustGo\image\4499.PNG'
-                # res = clicker.attempt_click_on_monitor(left_monitor, image_path)
-                res = clicker.find_image_on_monitor(left_monitor, image_path)
-                if res == True:
-                    time.sleep(timespan)
+                        image_path = current_path + r'\image\buy_ok_X.PNG'
+                        res = clicker.attempt_click_on_monitor(left_monitor, image_path, retry=1)
+                        if res== False:                
+                            messagebox.showinfo("終了", "エラー終了しました")
+                            exit()
 
-                    image_path = r'D:\RustGo\image\buy_ok_X.PNG'
-                    res = clicker.attempt_click_on_monitor(left_monitor, image_path, retry=1)
-                    time.sleep(timespan)  # 次のチェックまで1秒待機            
-                    if res== False:                
-                        messagebox.showinfo("終了", "エラー終了しました")
-                        exit()
-
-
-
-            # if vvv==1:
-            #     time.sleep(timespan) 
-            #     image_path = r'D:\RustGo\image\toribo.PNG'
-            #     # res = clicker.attempt_click_on_monitor(left_monitor, image_path)
-            #     res = clicker.find_image_on_monitor(left_monitor, image_path)
-            #     if res == True:
-            #         time.sleep(timespan_20)
-            #         image_path = r'D:\RustGo\image\toribo.PNG'
-            #         res = clicker.attempt_click_on_monitor(left_monitor, image_path, retry=3)
-            #         time.sleep(timespan)  # 次のチェックまで1秒待機            
-            #         if res== False:                
-            #             messagebox.showinfo("終了", "エラー終了しました")
-            #             exit()
-            #         time.sleep(timespan)
-            #         image_path = r'D:\RustGo\image\box_move.PNG'
-            #         res = clicker.attempt_click_on_monitor(left_monitor, image_path, label = "40",option =(500,600) ,retry=2)
-            #         time.sleep(timespan)  # 次のチェックまで1秒待機            
-            #         if res== False:                                
-            #             messagebox.showinfo("終了", "エラー終了しました")
-            #             exit()
             if vvv==1:
                 time.sleep(timespan) 
-                image_path = r'D:\RustGo\image\vikutori.PNG'
+                image_path = current_path + r'\image\vikutori.PNG'
                 # res = clicker.attempt_click_on_monitor(left_monitor, image_path)
                 res = clicker.find_image_on_monitor(left_monitor, image_path)
                 if res == True:
                     time.sleep(timespan_20)
-                    image_path = r'D:\RustGo\image\vikutori.PNG'
+                    image_path = current_path + r'\image\vikutori.PNG'
                     res = clicker.attempt_click_on_monitor(left_monitor, image_path, offset=(offx, offy-75 ), retry=3)
-                    time.sleep(timespan)  # 次のチェックまで1秒待機            
                     if res== False: 
                         messagebox.showinfo("終了", "エラー終了しました")
                         exit()
 
                     time.sleep(timespan) 
-                    image_path = r'D:\RustGo\image\4499.PNG'
+                    image_path = current_path + r'\image\4499.PNG'
                     # res = clicker.attempt_click_on_monitor(left_monitor, image_path)
                     res = clicker.find_image_on_monitor(left_monitor, image_path)
                     if res == True:
                         time.sleep(timespan)
-                        image_path = r'D:\RustGo\image\buy_ok_X.PNG'
+                        image_path = current_path + r'\image\buy_ok_X.PNG'
                         res = clicker.attempt_click_on_monitor(left_monitor, image_path, retry=1)
-                        time.sleep(timespan)  # 次のチェックまで1秒待機            
                         if res== False:                
                             messagebox.showinfo("終了", "エラー終了しました")
                             exit()  
 
-                        # time.sleep(timespan) 
-                        # image_path = r'D:\RustGo\image\vikutori.PNG'
-                        # # res = clicker.attempt_click_on_monitor(left_monitor, image_path)
-                        # res = clicker.find_image_on_monitor(left_monitor, image_path)
-                        # if res == True:
-                        #     time.sleep(timespan_20)
-                        #     image_path = r'D:\RustGo\image\vikutori.PNG'
-                        #     res = clicker.attempt_click_on_monitor(left_monitor, image_path, offset=(offx, offy-75 ), retry=3)
-                        #     time.sleep(timespan)  # 次のチェックまで1秒待機            
-                        #     if res== False: 
-                        #         messagebox.showinfo("終了", "エラー終了しました")
-                        #         exit()
-
                     time.sleep(timespan)
-                    image_path = r'D:\RustGo\image\box_move.PNG'
+                    image_path = current_path + r'\image\box_move.PNG'
                     res = clicker.attempt_click_on_monitor(left_monitor, image_path, label = "40",option =(500,600) ,retry=2)
-                    time.sleep(timespan)  # 次のチェックまで1秒待機            
                     if res== False:                
                         messagebox.showinfo("終了", "エラー終了しました")
                         exit()
 
-            if zzz==1:
+            if zzz==1: # black と　red のみ
                 time.sleep(timespan) 
-                image_path = r'D:\RustGo\image\open_box_black.PNG'
+                image_path = current_path + r'\image\open_box_black.PNG'
                 # res = clicker.attempt_click_on_monitor(left_monitor, image_path)
                 res = clicker.find_image_on_monitor(left_monitor, image_path)
                 if res == True:
                     time.sleep(timespan_20)
-                    image_path = r'D:\RustGo\image\open_box_black.PNG'
+                    image_path = current_path + r'\image\open_box_black.PNG'
                     res = clicker.attempt_click_on_monitor(left_monitor, image_path, retry=3)
-                    time.sleep(timespan)  # 次のチェックまで1秒待機            
                     if res== False:                
                         messagebox.showinfo("終了", "エラー終了しました")
                         exit()
                     time.sleep(timespan)
-                    image_path = r'D:\RustGo\image\box_move.PNG'
+                    image_path = current_path + r'\image\box_move.PNG'
                     res = clicker.attempt_click_on_monitor(left_monitor, image_path, label = "40",option =(500,600) ,retry=2)
-                    time.sleep(timespan)  # 次のチェックまで1秒待機            
                     if res== False:                
                         messagebox.showinfo("終了", "エラー終了しました")
                         exit()
-                image_path = r'D:\RustGo\image\open_box_red.PNG'
-                # res = clicker.attempt_click_on_monitor(left_monitor, image_path)
-                res = clicker.find_image_on_monitor(left_monitor, image_path)
-                if res == True:
-                    time.sleep(timespan_20)
-                    image_path = r'D:\RustGo\image\open_box_red.PNG'
-                    res = clicker.attempt_click_on_monitor(left_monitor, image_path, retry=3)
-                    time.sleep(timespan)  # 次のチェックまで1秒待機            
-                    if res== False:                
-                        messagebox.showinfo("終了", "エラー終了しました")
-                        exit()
-                    time.sleep(timespan)
-                    image_path = r'D:\RustGo\image\box_move.PNG'
-                    res = clicker.attempt_click_on_monitor(left_monitor, image_path, label = "40",option =(500,600) ,retry=2)
-                    time.sleep(timespan)  # 次のチェックまで1秒待機            
-                    if res== False:                
-                        messagebox.showinfo("終了", "エラー終了しました")
-                        exit()                        
+                else: # red
+                    time.sleep(timespan)        
+                    image_path = current_path + r'\image\open_box_red.PNG'
+                    # res = clicker.attempt_click_on_monitor(left_monitor, image_path)
+                    res = clicker.find_image_on_monitor(left_monitor, image_path)
+                    if res == True:
+                        time.sleep(timespan_20)
+                        image_path = current_path + r'\image\open_box_red.PNG'
+                        res = clicker.attempt_click_on_monitor(left_monitor, image_path, retry=3)
+                        if res== False:                
+                            messagebox.showinfo("終了", "エラー終了しました")
+                            exit()
+                        time.sleep(timespan)
+                        image_path = current_path + r'\image\box_move.PNG'
+                        res = clicker.attempt_click_on_monitor(left_monitor, image_path, label = "40",option =(500,600) ,retry=2)
+                        if res== False:                
+                            messagebox.showinfo("終了", "エラー終了しました")
+                            exit()                        
 
             if 1==xxx :
-                time.sleep(timespan) 
                 while True: #空のビコトリBOXあり
-                    image_path = r'D:\RustGo\image\BOX_emp.PNG'
+                    time.sleep(timespan) 
+                    image_path = current_path + r'\image\BOX_emp.PNG'
                     # res = clicker.attempt_click_on_monitor(left_monitor, image_path)
                     res = clicker.find_image_on_monitor(left_monitor, image_path)
                     if res == True:
                         time.sleep(timespan)
                         break                    
                     if 1==1:
-                        image_path = r'D:\RustGo\image\open_box_black.PNG'
+                        time.sleep(timespan)                         
+                        image_path = current_path + r'\image\open_box_black.PNG'
                         # res = clicker.attempt_click_on_monitor(left_monitor, image_path)
                         res = clicker.find_image_on_monitor(left_monitor, image_path)
                         if res == True:
                             time.sleep(timespan_20)
-                            image_path = r'D:\RustGo\image\open_box_black.PNG'
+                            image_path = current_path + r'\image\open_box_black.PNG'
                             res = clicker.attempt_click_on_monitor(left_monitor, image_path, retry=2)
-                            time.sleep(timespan)  # 次のチェックまで1秒待機            
                             if res== False:                
                                 messagebox.showinfo("終了", "エラー終了しました")
                                 exit()
                             time.sleep(timespan)
-                            image_path = r'D:\RustGo\image\box_move.PNG'
+                            image_path = current_path + r'\image\box_move.PNG'
                             res = clicker.attempt_click_on_monitor(left_monitor, image_path, label = "40",option =(500,600) ,retry=2)
-                            time.sleep(timespan)  # 次のチェックまで1秒待機            
                             if res== False:                
                                 messagebox.showinfo("終了", "エラー終了しました")
                                 exit()
@@ -1069,31 +1040,29 @@ def tarrun(app, xxx, zzz,yyy,vvv, mtimes , challenge_entry_duration, challenges)
 
             if 1==yyy: #買い
                 time.sleep(timespan) 
-                image_path = r'D:\RustGo\image\buy_ok.PNG'
+                image_path = current_path + r'\image\buy_ok.PNG'
                 # res = clicker.attempt_click_on_monitor(left_monitor, image_path)
                 res = clicker.find_image_on_monitor(left_monitor, image_path)
                 if res == True:
                     time.sleep(timespan)
-
-                    image_path = r'D:\RustGo\image\buy_ok_X.PNG'
+                    image_path = current_path + r'\image\buy_ok_X.PNG'
                     res = clicker.attempt_click_on_monitor(left_monitor, image_path, retry=2)
-                    time.sleep(timespan)  # 次のチェックまで1秒待機            
                     if res== False:                
                         messagebox.showinfo("終了", "エラー終了しました")
                         exit() 
 
             time.sleep(timespan)  
-            image_path = r'D:\RustGo\image\reage_down.PNG' #リーグダウン
+            image_path = current_path + r'\image\reage_down.PNG' #リーグダウン
             res = clicker.attempt_click_on_monitor(left_monitor, image_path, retry=1)
-            time.sleep(timespan)  # 次のチェックまで1秒待機            
+     
             # if res== False:                
             #     messagebox.showinfo("終了", "エラー終了しました")
             #     exit()   
 
-            timespan = random.uniform(1.5, 2.5) 
+            timespan = random.uniform(1.1, 1.8) 
             time.sleep(timespan)
             # timespan = 2
-            image_path = r'D:\RustGo\image\buttle_true.PNG'
+            image_path = current_path + r'\image\buttle_true.PNG'
             # 左モニタで画像をクリック
             res = clicker.attempt_click_on_monitor(left_monitor, image_path, offset=(offx, offy))
             if res == False:
@@ -1103,35 +1072,32 @@ def tarrun(app, xxx, zzz,yyy,vvv, mtimes , challenge_entry_duration, challenges)
 
             if 1==1:
                 time.sleep(timespan) 
-                image_path = r'D:\RustGo\image\4499.PNG'
+                image_path = current_path + r'\image\4499.PNG'
                 # res = clicker.attempt_click_on_monitor(left_monitor, image_path)
                 res = clicker.find_image_on_monitor(left_monitor, image_path)
                 if res == True:
                     time.sleep(timespan)
-
-                    image_path = r'D:\RustGo\image\buy_ok_X.PNG'
+                    image_path = current_path + r'\image\buy_ok_X.PNG'
                     res = clicker.attempt_click_on_monitor(left_monitor, image_path, retry=1)
-                    time.sleep(timespan)  # 次のチェックまで1秒待機            
                     if res== False:                
                         messagebox.showinfo("終了", "エラー終了しました")
                         exit()
 
 
             while True:
-                image_path = r'D:\RustGo\image\tajayu.PNG'
+                time.sleep(timespan)
+                image_path = current_path + r'\image\tajayu.PNG'
                 # res = clicker.attempt_click_on_monitor(left_monitor, image_path)
                 res = clicker.find_image_on_monitor(left_monitor, image_path)
                 if res == False:
                     time.sleep(timespan)
                     break
-                time.sleep(timespan)
             time.sleep(timespan*3)
             offx = random.uniform(0.5, 7.3)
             offy = random.uniform(0.2, 5.5)            
-            image_path = r'D:\RustGo\image\meisei_down.PNG'
+            image_path = current_path + r'\image\meisei_down.PNG'
             label = 'ｘ'
             res = clicker.attempt_click_on_monitor(left_monitor, image_path, label, offset=(offx, offy), retry=2)
-            time.sleep(timespan)  # 次のチェックまで待機            
             if res== False: #
                 for img_path, label in images:
                     res = clicker.attempt_click_on_monitor(left_monitor, img_path, label,option =(500,600), offset=(offx, offy), retry=2)
@@ -1147,6 +1113,29 @@ def tarrun(app, xxx, zzz,yyy,vvv, mtimes , challenge_entry_duration, challenges)
             app.altnum = rescnt
             # app.altnum = 110  # altnumを更新
             app.update_color_label()  # 色とテキストを更新            
+
+            # if maxcnt % challenge_entry_duration == 0:
+            #     #移行必要
+            #     for img_path, label in challenges:
+            #             time.sleep(timespan)  # 次のチェックまで待機
+            #             res = clicker.attempt_click_on_monitor(left_monitor, img_path, label,option =(500,600), offset=(offx, offy), retry=2)
+            #             if res==True:
+            #                 break
+            #         if res == False:
+            #             messagebox.showinfo("終了", "エラー 終了しました:" + str(images))
+            #             exit()
+
+            #     time.sleep(timespan) 
+            #     image_path = current_path + r'\image\4499.PNG'
+            #     # res = clicker.attempt_click_on_monitor(left_monitor, image_path)
+            #     res = clicker.find_image_on_monitor(left_monitor, image_path)
+            #     if res == True:
+            #         time.sleep(timespan)
+            #         image_path = current_path + r'\image\buy_ok_X.PNG'
+            #         res = clicker.attempt_click_on_monitor(left_monitor, image_path, retry=1)
+            #         if res== False:                
+            #             messagebox.showinfo("終了", "エラー終了しました")
+            #             exit()
 
             maxcnt = maxcnt + 1
             if maxcnt > maxlimit:
@@ -1167,20 +1156,19 @@ if __name__ == "__main__":
     app.update_color_label()
     root.iconbitmap("lannister_115487.ico")
 
-    def check_login_info():
-        if login_info:
-            print("login_info contents:", login_info)
-        root.after(1000, check_login_info)
+    # click_x = 600
+    # click_y = 600
+    # current_pos = pg.position()
+    # move_with_retry(click_x, click_y)
+    # doubleClick_with_retry(click_x, click_y)
+    # move_with_retry(current_pos.x,current_pos.y)
 
-    root.after(1000, check_login_info)
+    # def check_login_info():
+    #     if login_info:
+    #         print("login_info contents:", login_info)
+    #     root.after(1000, check_login_info)
 
-    challenge_options = [
-        "50 challenge",
-        "70 challenge",
-        "75 challenge",
-        "100 challenge",
-        "130 challenge"
-    ]
+    # root.after(1000, check_login_info)
 
     xxx = 1 if app.get_option_value("open box") else 0
     vvv = 1 if app.get_option_value("open victory box") else 0
@@ -1198,31 +1186,42 @@ if __name__ == "__main__":
     except ValueError:
         challenge_entry_duration = 5  # デフォルト値
 
+    current_path = os.getcwd()
+    challenge_options = [
+        (current_path + r'\image\50.png',"50 challenge", False),
+        (current_path + r'\image\70.png',"70 challenge", False),
+        (current_path + r'\image\85.png',"85 challenge", False),
+        (current_path + r'\image\100.png',"100 challenge", False),
+        (current_path + r'\image\130.png',"130 challenge", False)
+    ]
    # challenge関連の状態をリストとしてまとめる
-    challenges = [1 if app.get_option_value(option) else 2 for option in challenge_options]
+    # challenges = [1 if app.get_option_value(option) else 2 for option in challenge_options]
+    challenges = [1 if app.get_option_value(state) else 0 for (image, option_name, state)in challenge_options]
+    # challenges = [1 if state else 0 for (image, option_name, state) in challenge_options]
 
-    # tarrun を新スレッドで開始
-    # thread = threading.Thread(target=tarrun, args=(app,), kwargs=dict(xxx, zzz, yyy, vvv, mtimes, challenge_entry_duration, challenges))
-    thread = threading.Thread(
-    target=tarrun,
-    args=(app,),  # 必要に応じて、selfを渡す
-    kwargs=dict(
-        xxx=xxx,
-        zzz=zzz,
-        yyy=yyy,
-        vvv=vvv,
-        mtimes=mtimes,
-        challenge_entry_duration=challenge_entry_duration,  # "ces"が渡される
-        challenges=challenges  # "cha"が渡される
-    )
-)
+#     # tarrun を新スレッドで開始
+#     # thread = threading.Thread(target=tarrun, args=(app,), kwargs=dict(xxx, zzz, yyy, vvv, mtimes, challenge_entry_duration, challenges))
+#     thread = threading.Thread(
+#     target=tarrun,
+#     args=(app,),  # 必要に応じて、selfを渡す
+#     kwargs=dict(
+#         xxx=xxx,
+#         zzz=zzz,
+#         yyy=yyy,
+#         vvv=vvv,
+#         mtimes=mtimes,
+#         challenge_entry_duration=challenge_entry_duration,  # "ces"が渡される
+#         challenges=challenges,  # "cha"が渡される
+#         wait_for_idle_flag = wait_for_idle_flag
+#     )
+# )
     
-    thread.start()
+#     thread.start()
 
-    def on_closing():
-        stop_event.set()     # スレッド停止指示
-        thread.join(timeout=5)  # 最大5秒待機
-        root.destroy()
+    # def on_closing():
+    #     stop_event.set()     # スレッド停止指示
+    #     thread.join(timeout=5)  # 最大5秒待機
+    #     root.destroy()
 
-    root.protocol("WM_DELETE_WINDOW", on_closing)
+    # root.protocol("WM_DELETE_WINDOW", on_closing)
     root.mainloop()
